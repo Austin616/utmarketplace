@@ -6,7 +6,9 @@ interface SearchInputProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   suggestions?: Array<{ value: string; label: string; type?: string }>;
   onSelectSuggestion?: (value: string) => void;
+  onRemoveSuggestion?: (value: string) => void;
   onClear?: () => void;
+  onCommit?: (value: string) => void;
 }
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -33,7 +35,9 @@ const SearchInput: React.FC<SearchInputProps> = ({
   onChange,
   suggestions = [],
   onSelectSuggestion,
+  onRemoveSuggestion,
   onClear,
+  onCommit,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const showSuggestions = isFocused && suggestions.length > 0;
@@ -49,7 +53,10 @@ const SearchInput: React.FC<SearchInputProps> = ({
           value={value}
           onChange={onChange}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onBlur={() => {
+            setIsFocused(false);
+            if (onCommit) onCommit(value);
+          }}
         />
         {value && onClear && (
           <button
@@ -66,23 +73,40 @@ const SearchInput: React.FC<SearchInputProps> = ({
       {showSuggestions && (
         <div className="absolute left-0 right-0 mt-2 rounded-2xl border border-gray-200 bg-white shadow-lg overflow-hidden z-20">
           {suggestions.map((suggestion, index) => (
-            <button
+            <div
               key={`${suggestion.value}-${index}`}
-              type="button"
+              role="button"
+              tabIndex={0}
               onMouseDown={() => onSelectSuggestion?.(suggestion.value)}
-              className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition flex items-center justify-between gap-3"
+              className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition flex items-center justify-between gap-3 cursor-pointer"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate">
                   {highlightMatch(suggestion.label, value)}
                 </p>
               </div>
-              {suggestion.type && (
-                <span className="shrink-0 text-[11px] font-semibold text-ut-orange bg-ut-orange/10 px-2 py-1 rounded-full">
-                  {suggestion.type}
-                </span>
-              )}
-            </button>
+              <div className="flex items-center gap-2">
+                {suggestion.type && (
+                  <span className="shrink-0 text-[11px] font-semibold text-ut-orange bg-ut-orange/10 px-2 py-1 rounded-full">
+                    {suggestion.type}
+                  </span>
+                )}
+                {suggestion.type === "Recent" && onRemoveSuggestion && (
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemoveSuggestion(suggestion.value);
+                    }}
+                    aria-label={`Remove ${suggestion.label} from recent searches`}
+                    className="text-gray-400 hover:text-gray-600 transition"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       )}
